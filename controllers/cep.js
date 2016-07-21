@@ -1,5 +1,7 @@
 'use strict';
 
+// Alterada a função consulta para chamar o io-cep via Promises
+
 var correio = require('io-cep');
 var db = require('../models/cep');
 
@@ -48,17 +50,23 @@ var cache = function(res, atual) {
 exports.consulta = function(req, res, next) {
   var cep = req.params.cep;
   var rawcep;
-
   if (/^(\d{5})\-?(\d{3})$/.test(cep)) {
     rawcep = cep.split('-').join('');
     db.find(rawcep, function(err, data) {
       if (data)
         cache(res, JSON.parse(data));
       else
-        correio(rawcep, function(err, data) {
-          sedex(res, rawcep, data);
+        correio(rawcep)
+          .then(function(data) {
+            sedex(res, rawcep, data);
+          })
+          .catch(function(err) {
+            resposta(res, {
+              'success': false,
+              'msg': 'Erro no Correios'
+            });
+          })
         });
-    });
   } else {
     resposta(res, {
       'success': false,
